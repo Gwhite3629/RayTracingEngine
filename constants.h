@@ -15,6 +15,4 @@
 
 #define reduced_plank 1.054571817e-34
 
-constexpr double pi() {return std::acos(-1);};
-
 #endif // _CONSTANTS_H_

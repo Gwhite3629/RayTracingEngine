@@ -6,33 +6,43 @@
 #include <vector>
 
 template <typename T>
+struct data {
+    T containter;
+    std::vector<int> p;
+};
+
+template <typename T>
 class KDTree
 {
 public:
-    explicit DividedKDTree(const std::vector<std::vector<T>> &points)
+    explicit KDTree(const std::vector<data<T>> &points)
         : num_cells_(std::cbrt(points.size())),
           cells_(num_cells_,
-                 std::vector<std::vector<std::vector<T>>>(
-                     num_cells_, std::vector<std::vector<T>>(num_cells_)))
+                 std::vector<std::vector<std::vector<data<T>>>>(
+                     num_cells_, std::vector<std::vector<data<T>>>(num_cells_)))
     {
         // Determine the minimum and maximum values along each dimension.
-        std::vector<T> min(3, std::numeric_limits<T>::max());
-        std::vector<T> max(3, std::numeric_limits<T>::min());
+        std::vector<int> min(3, std::numeric_limits<int>::max());
+        std::vector<int> max(3, std::numeric_limits<int>::min());
         for (const auto &point : points)
         {
             for (int i = 0; i < 3; i++)
             {
-                min[i] = std::min(min[i], point[i]);
-                max[i] = std::max(max[i], point[i]);
+                min[i] = std::min(min[i], point.p[i]);
+                max[i] = std::max(max[i], point.p[i]);
             }
         }
+        min_ = min;
+        max_ = max;
 
         // Calculate the cell size along each dimension.
-        std::vector<T> cell_size(3);
+        std::vector<int> cell_size(3);
         for (int i = 0; i < 3; i++)
         {
             cell_size[i] = (max[i] - min[i]) / num_cells_;
         }
+
+        cell_size_ = cell_size;
 
         // Add the points to the appropriate cells.
         for (const auto &point : points)
@@ -41,7 +51,7 @@ public:
             std::vector<int> cell_indices(3);
             for (int i = 0; i < 3; i++)
             {
-                cell_indices[i] = std::min((point[i] - min[i]) / cell_size[i], num_cells_ - 1);
+                cell_indices[i] = std::min((point.p[i] - min[i]) / cell_size[i], num_cells_ - 1);
             }
 
             // Add the point to the appropriate cell.
@@ -49,20 +59,20 @@ public:
         }
     }
 
-    void Insert(const std::vector<T> &point)
+    void insert(const data<T> &point)
     {
         // Calculate the cell indices for the point.
         std::vector<int> cell_indices(3);
         for (int i = 0; i < 3; i++)
         {
-            cell_indices[i] = std::min((point[i] - min_[i]) / cell_size_[i], num_cells_ - 1);
+            cell_indices[i] = std::min((point.p[i] - min_[i]) / cell_size_[i], num_cells_ - 1);
         }
 
         // Add the point to the appropriate cell.
         cells_[cell_indices[0]][cell_indices[1]][cell_indices[2]].push_back(point);
     }
 
-    std::vector<T> NearestNeighbor(const std::vector<T> &point) const
+    data<T> nearestNeighbor(const std::vector<int> &point) const
     {
         // Calculate the cell indices for the point.
         std::vector<int> cell_indices(3);
@@ -72,8 +82,9 @@ public:
         }
 
         // Start with the cell containing the point as the best candidate.
-        std::vector<T> nearest = point;
-        T best_distance = std::numeric_limits<T>::max();
+        data<T> nearest;
+        nearest.p = point;
+        int best_distance = std::numeric_limits<int>::max();
 
         // Search the cells in a spiral pattern starting from the cell containing the point.
         int dx[] = {0, 1, 0, -1};
@@ -90,7 +101,7 @@ public:
                 // Check the points in the current cell.
                 for (const auto &candidate : cells_[x][y][z])
                 {
-                    T distance = SquaredDistance(point, candidate);
+                    int distance = squaredDistance(point, candidate.p);
                     if (distance < best_distance)
                     {
                         nearest = candidate;
@@ -124,10 +135,10 @@ public:
         return nearest;
     }
 
-    std::vector<std::vector<T>> RangeSearch(const std::vector<T> &lower,
-                                            const std::vector<T> &upper) const
+    std::vector<data<T>> rangeSearch(const std::vector<int> &lower,
+                                            const std::vector<int> &upper) const
     {
-        std::vector<std::vector<T>> points_in_range;
+        std::vector<data<T>> points_in_range;
 
         // Calculate the cell indices for the lower and upper bounds of the range.
         std::vector<int> lower_indices(3);
@@ -148,9 +159,9 @@ public:
                     // Check the points in the current cell.
                     for (const auto &point : cells_[x][y][z])
                     {
-                        if (point[0] >= lower[0] && point[0] <= upper[0] &&
-                            point[1] >= lower[1] && point[1] <= upper[1] &&
-                            point[2] >= lower[2] && point[2] <= upper[2])
+                        if (point.p[0] >= lower[0] && point.p[0] <= upper[0] &&
+                            point.p[1] >= lower[1] && point.p[1] <= upper[1] &&
+                            point.p[2] >= lower[2] && point.p[2] <= upper[2])
                         {
                             points_in_range.push_back(point);
                         }
@@ -162,10 +173,10 @@ public:
         return points_in_range;
     }
 
-    std::vector<std::vector<T>> KNearestNeighbors(const std::vector<T> &point,
+    std::vector<data<T>> kNearestNeighbors(const std::vector<int> &point,
                                                   int k) const
     {
-        std::vector<std::pair<T, std::vector<T>>> distances;
+        std::vector<std::pair<int, data<T>>> distances;
 
         // Calculate the cell indices for the point.
         std::vector<int> cell_indices(3);
@@ -189,8 +200,8 @@ public:
                 // Check the points in the current cell.
                 for (const auto &candidate : cells_[x][y][z])
                 {
-                    T distance = SquaredDistance(point, candidate);
-                    distances.emplace_back(distance, candidate);
+                    int distance = squaredDistance(point, candidate.p);
+                    distances.emplace_back(distance, candidate.p);
                 }
 
                 // Move to the next cell in the spiral pattern.
@@ -217,16 +228,16 @@ public:
         }
         // Sort the distances and return the k nearest neighbors.
         std::sort(distances.begin(), distances.end());
-        std::vector<std::vector<T>> nearest_neighbors;
+        std::vector<data<T>> nearest_neighbors;
         for (int i = 0; i < k && i < distances.size(); i++)
         {
-            nearest_neighbors.push_back(distances[i].second);
+            nearest_neighbors.push_back(distances[i].p.second);
         }
 
         return nearest_neighbors;
     }
 
-    void Clear()
+    void clear()
     {
         for (int x = 0; x < num_cells_; x++)
         {
@@ -234,13 +245,13 @@ public:
             {
                 for (int z = 0; z < num_cells_; z++)
                 {
-                    cells_[x][y][z].clear();
+                    cells_[x][y][z].p.clear();
                 }
             }
         }
     }
 
-    int Size() const
+    int size() const
     {
         int size = 0;
         for (int x = 0; x < num_cells_; x++)
@@ -256,7 +267,7 @@ public:
         return size;
     }
 
-    bool IsEmpty() const
+    bool isEmpty() const
     {
         for (int x = 0; x < num_cells_; x++)
         {
@@ -264,7 +275,7 @@ public:
             {
                 for (int z = 0; z < num_cells_; z++)
                 {
-                    if (!cells_[x][y][z].empty())
+                    if (!cells_[x][y][z].p.empty())
                     {
                         return false;
                     }
@@ -274,18 +285,24 @@ public:
         return true;
     }
 
+    
+
 private:
     // The number of cells in the divided space.
     int num_cells_;
 
     // The cells containing the points.
-    std::vector<std::vector<std::vector<std::vector<T>>>> cells_;
+    std::vector<std::vector<std::vector<std::vector<data<T>>>>> cells_;
 
-    static T SquaredDistance(const std::vector<T> &p1,
-                             const std::vector<T> &p2)
+    std::vector<int> min_;
+    std::vector<int> max_;
+    std::vector<int> cell_size_;
+
+    static int squaredDistance(const std::vector<int> &p1,
+                             const std::vector<int> &p2)
     {
-        T squared_distance = 0;
-        for (int i = 0; i < D; ++i)
+        int squared_distance = 0;
+        for (int i = 0; i < 3; ++i)
         {
             squared_distance += (p1[i] - p2[i]) * (p1[i] - p2[i]);
         }

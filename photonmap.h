@@ -2,6 +2,7 @@
 #define _PHOTONMAP_H_
 
 #include "constants.h"
+constexpr double pi() {return std::acos(-1);};
 
 #include <vector>
 #include <complex>
@@ -26,7 +27,6 @@ public:
 
     photon_data data;
     derived_data p_data;
-    std::vector<double> position;
     std::vector<double> direction;
 
     void derive (void) {
